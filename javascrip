@@ -1,0 +1,6 @@
+//1. pilih tombol berdakan ID-nya
+const tombolSapa = documen.getElementByld9('sapaButton')
+//2.Tambahkan 'event listener' untuk aksi 'clik'
+tombolsapa.addEventListener('clink,fumction() {
+//3. jalankan kode ini ketika tombol di-klik
+alert('Halo Terima kasih sudah berkunjung');});                          
