@@ -1,0 +1,19 @@
+body {
+  backround-color: /* warna Kuning cerah */
+  font-family: Arial, sans-serif; /* jenis huruf yang bersih dan mudah dibaca */
+  color: /* warna teks utama (Biru Gelap) */
+.kartu-profil img {
+  width: 300px;
+  margin: 50px auto; /* 50px jarak atas/bawah, auto menengahkan kiri/kanan */
+  padding: 20px;
+  backround-color: white;
+  border-radius: 15px; /* membuat sudut menjadi melengkung */
+  box-shadow:0 4px 8px rgba(0, 0, 0, 0, 1); /* Efek bayangan */}
+
+.kartu-profil img {
+  width: 150px;
+  broder-radius: 50% /* Trik untuk membuat gambar persegi lingkaran sempurna */}
+.kartu-profil img {
+  /* ... (kode dari slide sebelumnya) ... */
+  text-align: center; /* menengahkan semua teks di dalam kartu */
+  
