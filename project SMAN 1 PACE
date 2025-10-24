@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""
+expenses_manager.py
+CLI sederhana untuk mengelola expenses.csv
+"""
+import argparse
+import pandas as pd
+from pathlib import Path
+from dateutil.parser import parse as parse_date
+from tabulate import tabulate
+
+CSV_PATH = Path("expenses.csv")
+COLUMNS = ["id", "date", "category", "amount", "currency", "note"]
+
+def ensure_csv():
+    if not CSV_PATH.exists():
+        df = pd.DataFrame(columns=COLUMNS)
+        df.to_csv(CSV_PATH, index=False)
+
+def read_df():
+    ensure_csv()
+    df = pd.read_csv(CSV_PATH, parse_dates=["date"], dayfirst=False)
+    # ensure types
+    if df.empty:
+        return df
+    df['date'] = pd.to_datetime(df['date'])
+    return df
+
+def next_id(df):
+    if df.empty:
+        return 1
+    return int(df['id'].max()) + 1
+
+def add_entry(args):
+    df = read_df()
+    nid = next_id(df)
+    try:
+        d = parse_date(args.date).date()
+    except Exception:
+        print("Format tanggal tidak valid. Gunakan YYYY-MM-DD.")
+        return
+    new = {
+        "id": nid,
+        "date": d.isoformat(),
+        "category": args.category,
+        "amount": float(args.amount),
+        "currency": args.currency or "IDR",
+        "note": args.note or ""
+    }
+    df = df.append(new, ignore_index=True)
+    df.to_csv(CSV_PATH, index=False)
+    print(f"Ditambahkan: id={nid}")
+
+def list_entries(args):
+    df = read_df()
+    if df.empty:
+        print("Belum ada pengeluaran.")
+        return
+    df_sorted = df.sort_values(by="date", ascending=False)
+    if args.from_date or args.to_date:
+        if args.from_date:
+            df_sorted = df_sorted[df_sorted['date'] >= pd.to_datetime(args.from_date)]
+        if args.to_date:
+            df_sorted = df_sorted[df_sorted['date'] <= pd.to_datetime(args.to_date)]
+    if args.category:
+        df_sorted = df_sorted[df_sorted['category'].str.contains(args.category, case=False, na=False)]
+    print(tabulate(df_sorted, headers="keys", tablefmt="psql", showindex=False))
+
+def summary(args):
+    df = read_df()
+    if df.empty:
+        print("Belum ada data untuk dirangkum.")
+        return
+    if args.month:
+        # format YYYY-MM
+        try:
+            y, m = args.month.split("-")
+            ym_mask = (df['date'].dt.year == int(y)) & (df['date'].dt.month == int(m))
+            dfm = df[ym_mask]
+        except Exception:
+            print("Format month harus YYYY-MM, contoh: 2025-10")
+            return
+        if dfm.empty:
+            print("Tidak ada data untuk bulan tersebut.")
+            return
+        total = dfm['amount'].sum()
+        by_cat = dfm.groupby('category')['amount'].sum().sort_values(ascending=False)
+        print(f"Ringkasan untuk {args.month}")
+        print(f"Total: {total:,.0f} {dfm.iloc[0]['currency']}")
+        print("\nPer kategori:")
+        print(tabulate(by_cat.reset_index().values, headers=["category", "total"], tablefmt="psql"))
+    else:
+        # keseluruhan
+        total = df['amount'].sum()
+        by_cat = df.groupby('category')['amount'].sum().sort_values(ascending=False)
+        print("Ringkasan keseluruhan")
+        print(f"Total: {total:,.0f}")
+        print(tabulate(by_cat.reset_index().values, headers=["category", "total"], tablefmt="psql"))
+
+def delete_entry(args):
+    df = read_df()
+    if df.empty:
+        print("Tidak ada data.")
+        return
+    mask = df['id'] == int(args.id)
+    if not mask.any():
+        print(f"id {args.id} tidak ditemukan.")
+        return
+    df2 = df[~mask]
+    df2.to_csv(CSV_PATH, index=False)
+    print(f"id {args.id} dihapus.")
+
+def main():
+    parser = argparse.ArgumentParser(description="Manage expenses.csv")
+    sub = parser.add_subparsers(dest="cmd")
+
+    p_add = sub.add_parser("add")
+    p_add.add_argument("--date", required=True, help="YYYY-MM-DD")
+    p_add.add_argument("--category", required=True)
+    p_add.add_argument("--amount", required=True, type=float)
+    p_add.add_argument("--currency", default="IDR")
+    p_add.add_argument("--note", default="")
+
+    p_list = sub.add_parser("list")
+    p_list.add_argument("--from-date", help="YYYY-MM-DD")
+    p_list.add_argument("--to-date", help="YYYY-MM-DD")
+    p_list.add_argument("--category", help="filter by category substring")
+
+    p_sum = sub.add_parser("summary")
+    p_sum.add_argument("--month", help="YYYY-MM (opsional)")
+
+    p_del = sub.add_parser("delete")
+    p_del.add_argument("--id", required=True, help="id entry to delete")
+
+    args = parser.parse_args()
+    if args.cmd == "add":
+        add_entry(args)
+    elif args.cmd == "list":
+        list_entries(args)
+    elif args.cmd == "summary":
+        summary(args)
+    elif args.cmd == "delete":
+        delete_entry(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
